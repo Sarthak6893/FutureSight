@@ -38,13 +38,15 @@ An intelligent data visualization platform that converts natural language prompt
 - Node.js 16+
 - Gemini API key
 
-### 1. Clone the Repository
+### Option 1: Local Development
+
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/yourusername/future-sight.git
 cd future-sight
 ```
 
-### 2. Backend Setup
+#### 2. Backend Setup
 ```bash
 cd backend
 python -m venv venv
@@ -52,25 +54,36 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
+#### 3. Environment Configuration
 Create `.env` file in backend directory:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 4. Start Backend
+#### 4. Start Backend
 ```bash
 python main.py
 ```
 Backend runs on: http://localhost:8000
 
-### 5. Frontend Setup
+#### 5. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm start
 ```
 Frontend runs on: http://localhost:3000
+
+### Option 2: Deploy to Render (Recommended)
+
+For production deployment, see [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for detailed instructions.
+
+**Quick Render Setup:**
+1. Push your code to GitHub
+2. Create a Web Service on Render for the backend
+3. Create a Static Site on Render for the frontend
+4. Set environment variables (GEMINI_API_KEY, REACT_APP_API_URL)
+5. Deploy!
 
 ## 🎯 Usage
 
