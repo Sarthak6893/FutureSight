@@ -130,3 +130,4 @@ Once uploaded, your repository will be available at:
 `https://github.com/YOUR_USERNAME/future-sight`
 
 Share this link with others to showcase your AI data visualization project! 🔮✨
+

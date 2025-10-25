@@ -130,3 +130,4 @@ git push -u origin main
 - **Only source code is uploaded**
 
 Your Future Sight project will be live on GitHub! 🔮✨
+

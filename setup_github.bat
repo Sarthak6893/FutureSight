@@ -61,3 +61,4 @@ echo.
 echo For detailed instructions, see GITHUB_SETUP.md
 echo.
 pause
+
