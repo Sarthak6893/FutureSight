@@ -1,2 +1,0 @@
-# Gemini API Key
-GEMINI_API_KEY=AIzaSyAFmLNVjsQ21h5cxmP8Qwbw_gUwvr7F6WU
