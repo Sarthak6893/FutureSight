@@ -52,7 +52,7 @@ echo ✅ Initial commit created
 
 echo.
 echo [5/6] Connecting to GitHub repository...
-git remote add origin https://github.com/Sarthak6893/FutureSight-.git
+git remote add origin https://github.com/sarthak6893/futuresight-.git
 if %errorlevel% neq 0 (
     echo ❌ Failed to add remote origin
     echo This might mean the remote already exists
@@ -83,7 +83,7 @@ echo    SUCCESS! Project Pushed to GitHub
 echo ========================================
 echo.
 echo Your repository is now available at:
-echo https://github.com/Sarthak6893/FutureSight-
+echo https://github.com/sarthak6893/futuresight-
 echo.
 echo 🎉 Future Sight is now live on GitHub!
 echo.
