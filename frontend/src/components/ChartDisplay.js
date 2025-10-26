@@ -40,7 +40,7 @@ const ChartDisplay = ({ chartData }) => {
   // Handle the backend response format which returns base64 image
   if (chartData.chart_image) {
     return (
-      <div className="chart-container">
+      <div className="chart-display">
         <h3 className="chart-title">Generated Chart</h3>
         <div className="chart-image-wrapper">
           <img 

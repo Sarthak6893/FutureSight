@@ -47,21 +47,7 @@ const ChartGenerator = ({ onGenerateChart, generating, generationStatus, dataset
         />
       </div>
 
-      <div className="example-prompts">
-        <h4>Example prompts:</h4>
-        <div className="example-buttons">
-          {examplePrompts.map((example, index) => (
-            <button
-              key={index}
-              onClick={() => handleExampleClick(example)}
-              className="example-button"
-              disabled={generating}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Example prompts section removed as requested */}
 
       <button
         onClick={handleGenerate}

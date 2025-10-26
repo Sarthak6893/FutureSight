@@ -22,7 +22,7 @@ echo.
 echo Starting Backend Server...
 echo Backend will run on: http://localhost:8000
 echo.
-start "Future Sight Backend" cmd /k "cd /d %CD%\backend && call venv\Scripts\activate.bat && python main.py"
+start "Future Sight Backend" cmd /k "cd /d %CD%\backend && if %errorlevel% neq 0 echo Failed to change directory && python main.py"
 
 echo Waiting 5 seconds for backend to start...
 timeout /t 5 /nobreak > nul
