@@ -38,7 +38,6 @@ class ChartResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     datasetInfo: dict
-
 class ChatResponse(BaseModel):
     message: str
 
@@ -82,30 +81,43 @@ async def chat(request: ChatRequest):
     try:
         gemini_api_key = os.getenv("GEMINI_API_KEY")
         if not gemini_api_key:
+            print("Gemini API key not configured")
             raise HTTPException(status_code=500, detail="Gemini API key not configured")
 
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
 
         columns = datasetInfo['columns']
-        
+        # Include up to 10 rows of sample data for context
+        sample_data = datasetInfo.get('sample_data', [])
+        if not sample_data:
+            # fallback: use first 10 rows from 'data'
+            sample_data = datasetInfo.get('data', [])[:10]
+        sample_data_json = json.dumps(sample_data, indent=2)
+
         prompt = (
-            "You are a data visualization assistant. "
-            "A user has uploaded a dataset. Your task is to generate Python code to create a chart based on the user's request. "
-            "The dataset is already loaded as a pandas DataFrame named 'df'. Do not write any code to load the data (e.g., pd.read_csv). "
-            "The generated code should only contain Python code using matplotlib and pandas. "
-            "Ensure the code ends with plt.show(). Do not include any text, comments, or markdown like ```python. "
-            f"Dataset columns are: {', '.join(columns)}. "
+            "You are a data insights expert. "
+            "A user has uploaded a dataset. Your task is to provide clear, concise, and actionable insights, summaries, or analysis about the data based on the user's question or request. "
+            "Do not generate Python code or charts. "
+            f"Dataset columns are: {', '.join(columns)}.\n"
+            f"Here are some sample rows from the dataset:\n{sample_data_json}\n"
             f"User request: '{request.message}'"
         )
-        
+
         response = model.generate_content(prompt)
-        ai_response = response.text.strip()
-        
+        ai_response = getattr(response, "text", "")
+        if not ai_response or not isinstance(ai_response, str):
+            print("AI did not return a valid response.")
+            raise HTTPException(status_code=500, detail="AI did not return a valid response.")
+
+        ai_response = ai_response.strip()
+        print(f"AI Chat Response: {ai_response}")
+
         return {"message": ai_response}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating chat response: {str(e)}")
+        print(f"Chat endpoint error: {str(e)}")
+        return {"message": f"Sorry, I encountered an error processing your request: {str(e)}"}
 
 @app.post("/generate-chart", response_model=ChartResponse)
 async def generate_chart(request: ChartRequest):
@@ -119,12 +131,11 @@ async def generate_chart(request: ChartRequest):
             raise HTTPException(status_code=500, detail="Gemini API key not configured")
 
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')  # Use 2.0-flash everywhere
 
         df = pd.DataFrame.from_records(request.datasetInfo['data'])
         columns = request.datasetInfo['columns']
         user_visual_request = request.prompt
-        
         # Step 1: Initial Code Generation with explicit aggregation instructions
         generation_prompt = (
             "You are a data visualization assistant. "
@@ -133,12 +144,13 @@ async def generate_chart(request: ChartRequest):
             "**Crucially, if the user's request implies aggregating data (e.g., 'total sales per category', 'units sold of every region'), you MUST use appropriate pandas functions like `groupby()` and aggregation methods (`sum()`, `mean()`, etc.) before plotting.** "
             "Do not use pd.read_csv. Use descriptive labels and titles. "
             "Ensure the code ends with plt.show(). Return ONLY Python code, no text or markdown. "
+
             f"Dataset columns: {', '.join(columns)}. "
             f"User request: '{user_visual_request}'."
         )
 
         response = model.generate_content(generation_prompt)
-        raw_response = response.text.strip()
+        raw_response = getattr(response, "text", "").strip()
         initial_code = re.sub(r'```python\n|```', '', raw_response)
         print(f"Initial AI Code: {initial_code}")
 
@@ -155,17 +167,23 @@ async def generate_chart(request: ChartRequest):
         )
 
         review_response = model.generate_content(review_prompt)
-        raw_reviewed_response = review_response.text.strip()
+        raw_reviewed_response = getattr(review_response, "text", "").strip()
         final_code = re.sub(r'```python\n|```', '', raw_reviewed_response)
         ai_response = final_code
         print(f"Final (Reviewed) AI Code: {final_code}")
-        
+
         # Step 3: Execution of the final, reviewed code
+        if not final_code or len(final_code) < 10:
+            raise Exception("AI did not return valid Python code for chart generation.")
+
         exec_globals = {'df': df, 'pd': pd, 'plt': plt}
-        exec(final_code, exec_globals)
+        try:
+            exec(final_code, exec_globals)
+        except Exception as exec_err:
+            print(f"Error executing AI code: {exec_err}")
+            raise Exception(f"Error executing AI code: {exec_err}")
 
         fig = plt.gcf()
-        
         buffer = io.BytesIO()
         fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
         buffer.seek(0)

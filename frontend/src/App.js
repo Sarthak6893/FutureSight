@@ -119,10 +119,10 @@ function App() {
     try {
       const response = await axios.post(`${API_BASE_URL}/chat`, {
         message: chatMessage,
-        datasetInfo: {
+        datasetInfo: dataset ? {
           columns: dataset.columns,
           sample_data: dataset.sample_data
-        },
+        } : null,
       });
       setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.message }]);
     } catch (error) {
@@ -336,60 +336,170 @@ function App() {
           )}
 
           {activeTab === 'insights' && (
-            <div className="insights-container">
+            <div className="insights-container" style={{padding: '32px 0'}}>
               <h2 className="section-title">Chat with AI</h2>
-              {dataset ? (
-                <div className="chat-interface">
-                  <div className="chat-messages">
-                    {chatHistory.length === 0 ? (
-                      <div className="chat-welcome">
-                        <h3>Ask me anything about your data</h3>
-                        <p>For example: "What trends do you see in this dataset?" or "Which products would perform well in the coming years?"</p>
-                      </div>
-                    ) : (
-                      chatHistory.map((msg, index) => (
-                        <div key={index} className={`chat-message ${msg.role}`}>
-                          <div className="message-content">{msg.content}</div>
+              <div className="chat-interface" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '70vh',
+                maxWidth: '700px',
+                margin: '0 auto'
+              }}>
+                <div className="chat-messages" style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '18px'
+                }}>
+                  {chatHistory.length === 0 ? (
+                    <div className="chat-welcome" style={{textAlign: 'center', color: '#666'}}>
+                      <h3>Ask me anything{dataset ? ' about your data' : ' about data analysis'}</h3>
+                      <p>{dataset 
+                        ? "For example: 'What trends do you see in this dataset?' or 'Which products would perform well in the coming years?'"
+                        : "For example: 'What is data visualization?' or 'How to analyze sales data?'"
+                      }</p>
+                    </div>
+                  ) : (
+                    chatHistory.map((msg, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                          alignItems: 'flex-end',
+                          gap: '12px'
+                        }}
+                      >
+                        <img
+                          src={
+                            msg.role === 'user'
+                              ? "https://api.dicebear.com/7.x/avataaars/svg?seed=user"
+                              : "https://api.dicebear.com/7.x/bottts/svg?seed=assistant"
+                          }
+                          alt={msg.role === 'user' ? 'User Avatar' : 'AI Assistant Avatar'}
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            background: msg.role === 'user' ? '#f0f4fa' : '#e3f2fd'
+                          }}
+                        />
+                        <div
+                          style={{
+                            background: msg.role === 'user' ? '#f0f4fa' : '#fff',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '16px',
+                            boxShadow: 'none',
+                            padding: '12px 16px',
+                            maxWidth: '70%',
+                            minWidth: '100px',
+                            color: '#222',
+                            textAlign: 'left',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-line',
+                            fontSize: '16px',
+                          }}
+                        >
+                          {msg.content}
                         </div>
-                      ))
-                    )}
-                    {sendingChat && (
-                      <div className="chat-message assistant">
-                        <div className="message-content typing">Thinking...</div>
                       </div>
-                    )}
-                  </div>
-                  <div className="chat-input-container">
-                    <input
-                      type="text"
-                      className="chat-input"
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      placeholder="Ask about your data..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                    />
-                    <button 
-                      className="chat-send-btn"
-                      onClick={handleSendChatMessage}
-                      disabled={sendingChat || !chatMessage.trim()}
-                    >
-                      Send
-                    </button>
-                  </div>
+                    ))
+                  )}
+                  {sendingChat && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'flex-end',
+                      gap: '12px'
+                    }}>
+                      <img
+                        src="https://api.dicebear.com/7.x/bottts/svg?seed=assistant"
+                        alt="AI Assistant Avatar"
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                          background: '#e3f2fd'
+                        }}
+                      />
+                      <div style={{
+                        background: '#fff',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '16px',
+                        boxShadow: 'none',
+                        padding: '12px 16px',
+                        maxWidth: '70%',
+                        minWidth: '100px',
+                        color: '#222',
+                        fontSize: '16px',
+                      }}>
+                        <span className="typing">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="empty-icon">💡</div>
-                  <h3>No Dataset Available</h3>
-                  <p>Upload a dataset to chat with AI about your data</p>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => setActiveTab('upload')}
+                <div className="chat-input-container" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '18px 0 0 0',
+                  background: 'transparent',
+                  borderTop: 'none',
+                  gap: '12px'
+                }}>
+                  <textarea
+                    className="chat-input"
+                    style={{
+                      flex: 1,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '16px',
+                      padding: '12px 16px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      background: '#fff',
+                      resize: 'none',
+                      minHeight: '40px',
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      boxSizing: 'border-box'
+                    }}
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    rows={1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendChatMessage();
+                      }
+                    }}
+                  />
+                  <button
+                    className="chat-send-btn"
+                    style={{
+                      background: '#1976d2',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '40px',
+                      height: '40px',
+                      fontSize: '22px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: 'none'
+                    }}
+                    onClick={handleSendChatMessage}
+                    disabled={sendingChat || !chatMessage.trim()}
                   >
-                    Go to Upload
+                    <span role="img" aria-label="send">➤</span>
                   </button>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
