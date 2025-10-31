@@ -25,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class ChartRequest(BaseModel):
     prompt: str
     datasetInfo: dict
@@ -71,13 +70,10 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     datasetInfo = request.datasetInfo
-    if datasetInfo is None:
-        raise HTTPException(status_code=400, detail="No data uploaded. Please upload a file first.")
-
+    # Allow chatting even if no dataset uploaded
     try:
         gemini_api_key = os.getenv("GEMINI_API_KEY")
         if not gemini_api_key:
@@ -85,25 +81,25 @@ async def chat(request: ChatRequest):
             raise HTTPException(status_code=500, detail="Gemini API key not configured")
 
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
-        columns = datasetInfo['columns']
-        # Include up to 10 rows of sample data for context
-        sample_data = datasetInfo.get('sample_data', [])
-        if not sample_data:
-            # fallback: use first 10 rows from 'data'
-            sample_data = datasetInfo.get('data', [])[:10]
-        sample_data_json = json.dumps(sample_data, indent=2)
-
-        prompt = (
-            "You are a data insights expert. "
-            "A user has uploaded a dataset. Your task is to provide clear, concise, and actionable insights, summaries, or analysis about the data based on the user's question or request. "
-            "Do not generate Python code or charts. "
-            f"Dataset columns are: {', '.join(columns)}.\n"
-            f"Here are some sample rows from the dataset:\n{sample_data_json}\n"
-            f"User request: '{request.message}'"
-        )
-
+        if not datasetInfo or not datasetInfo.get('data'):
+            # No dataset - generic prompt
+            prompt = (
+                "You are a data analysis expert. Provide clear, concise, and helpful answers about data analysis, "
+                "statistics, and best practices. "
+                f"Answer the following question: '{request.message}'"
+            )
+        else:
+            columns = datasetInfo['columns']
+            sample_data = datasetInfo.get('sample_data', []) or datasetInfo.get('data', [])[:10]
+            sample_data_json = json.dumps(sample_data, indent=2)
+            prompt = (
+                "You are a data insights expert analyzing an uploaded dataset. Provide actionable insights and answers based on the data. "
+                f"Columns: {', '.join(columns)}.\nSample data:\n{sample_data_json}\n"
+                f"User query: '{request.message}'"
+            )
+        
         response = model.generate_content(prompt)
         ai_response = getattr(response, "text", "")
         if not ai_response or not isinstance(ai_response, str):
@@ -136,25 +132,25 @@ async def generate_chart(request: ChartRequest):
         df = pd.DataFrame.from_records(request.datasetInfo['data'])
         columns = request.datasetInfo['columns']
         user_visual_request = request.prompt
-        # Step 1: Initial Code Generation with explicit aggregation instructions
+
         generation_prompt = (
             "You are a data visualization assistant. "
             "A user has uploaded a dataset, which is already loaded as the pandas DataFrame df. "
             "Your task is to generate Python code using matplotlib and pandas to create the requested chart. "
-            "**Crucially, if the user's request implies aggregating data (e.g., 'total sales per category', 'units sold of every region'), you MUST use appropriate pandas functions like `groupby()` and aggregation methods (`sum()`, `mean()`, etc.) before plotting.** "
-            "Do not use pd.read_csv. Use descriptive labels and titles. "
-            "Ensure the code ends with plt.show(). Return ONLY Python code, no text or markdown. "
-
+            "**Use the raw data from the DataFrame exactly as it is. Do NOT perform any aggregation, grouping, summation, or averaging, regardless of the user's request.** "
+            "Do not load data from files (no pd.read_csv). "
+            "Add descriptive axis labels and chart titles relevant to the dataset and user query. "
+            "Do NOT call plt.show() in the code. "
+            "Return only valid, runnable Python code, no explanations or markdown. "
             f"Dataset columns: {', '.join(columns)}. "
             f"User request: '{user_visual_request}'."
         )
 
         response = model.generate_content(generation_prompt)
         raw_response = getattr(response, "text", "").strip()
-        initial_code = re.sub(r'```python\n|```', '', raw_response)
+        initial_code = re.sub(r'``````', '', raw_response)
         print(f"Initial AI Code: {initial_code}")
 
-        # Step 2: Code Review and Correction with explicit aggregation check
         review_prompt = (
             "You are a Python code reviewer. Your task is to check if the provided Python code correctly implements the user's visualization request given the dataset's columns. "
             "The code operates on a pandas DataFrame named 'df'. "
@@ -168,14 +164,38 @@ async def generate_chart(request: ChartRequest):
 
         review_response = model.generate_content(review_prompt)
         raw_reviewed_response = getattr(review_response, "text", "").strip()
-        final_code = re.sub(r'```python\n|```', '', raw_reviewed_response)
+        final_code = re.sub(r'``````', '', raw_reviewed_response)
         ai_response = final_code
         print(f"Final (Reviewed) AI Code: {final_code}")
 
-        # Step 3: Execution of the final, reviewed code
         if not final_code or len(final_code) < 10:
             raise Exception("AI did not return valid Python code for chart generation.")
 
+        # Check for aggregation keywords and fallback if found
+        aggregation_keywords = ['groupby', 'sum(', 'mean(', 'cumsum', 'aggregate', 'pivot_table', 'resample']
+        if any(keyword in final_code for keyword in aggregation_keywords):
+            # Fallback: manually create raw data chart
+            fig, ax = plt.subplots(figsize=(10, 6))
+            x_col, y_col = df.columns[0], df.columns[1]
+            ax.bar(df[x_col], df[y_col].fillna(0))
+            ax.set_xlabel(x_col)
+            ax.set_ylabel(y_col)
+            ax.set_title(f"Chart for: {user_visual_request}")
+            plt.tight_layout()
+
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+            buffer.seek(0)
+            chart_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close(fig)
+
+            return {
+                "success": True,
+                "chart_image": chart_base64,
+                "message": "Chart generated with raw data (fallback to avoid aggregation issues)"
+            }
+
+        # Execute final validated code
         exec_globals = {'df': df, 'pd': pd, 'plt': plt}
         try:
             exec(final_code, exec_globals)
@@ -198,7 +218,7 @@ async def generate_chart(request: ChartRequest):
 
     except Exception as e:
         print(f"Error during chart generation: {str(e)}")
-        # Fallback chart generation
+        # Fallback chart generation in case of failure
         df = pd.DataFrame.from_records(request.datasetInfo['data'])
         fig, ax = plt.subplots(figsize=(10, 6))
 
