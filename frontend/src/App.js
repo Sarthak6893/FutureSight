@@ -121,7 +121,8 @@ function App() {
         message: chatMessage,
         datasetInfo: dataset ? {
           columns: dataset.columns,
-          sample_data: dataset.sample_data
+          sample_data: dataset.sample_data,
+          data: dataset.data
         } : null,
       });
       setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.message }]);
@@ -537,7 +538,7 @@ function App() {
 
         <footer className="app-footer">
           <div className="footer-content">
-            <p>© 2023 Future Sight | AI-Powered Data Visualization</p>
+            <p>© 2025 Future Sight | AI-Powered Data Visualization</p>
             <div className="footer-links">
               <a href="#">Privacy</a>
               <a href="#">Terms</a>

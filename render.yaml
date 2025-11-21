@@ -1,0 +1,27 @@
+services:
+  # Backend API Service
+  - type: web
+    name: futuresight-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /
+
+  # Frontend Web Service
+  - type: web
+    name: futuresight-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npx serve -s build -l $PORT
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://futuresight-backend.onrender.com
+      - key: NODE_VERSION
+        value: 18.18.0
+    healthCheckPath: /
+
